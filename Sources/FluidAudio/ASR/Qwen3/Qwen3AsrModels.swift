@@ -273,6 +273,40 @@ public final class EmbeddingWeights: Sendable {
         self.data = fileData
     }
 
+    @inline(__always)
+    private func float16BitsToFloat(_ bits: UInt16) -> Float {
+        let sign = UInt32(bits & 0x8000) << 16
+        let exponent = Int((bits >> 10) & 0x1F)
+        let fraction = UInt32(bits & 0x03FF)
+
+        let floatBits: UInt32
+        switch exponent {
+        case 0:
+            if fraction == 0 {
+                floatBits = sign
+            } else {
+                var normalizedFraction = fraction
+                var normalizedExponent = -14
+                while (normalizedFraction & 0x0400) == 0 {
+                    normalizedFraction <<= 1
+                    normalizedExponent -= 1
+                }
+                normalizedFraction &= 0x03FF
+                let exponentBits = UInt32(normalizedExponent + 127) << 23
+                let fractionBits = normalizedFraction << 13
+                floatBits = sign | exponentBits | fractionBits
+            }
+        case 0x1F:
+            floatBits = sign | 0x7F80_0000 | (fraction << 13)
+        default:
+            let exponentBits = UInt32(exponent - 15 + 127) << 23
+            let fractionBits = fraction << 13
+            floatBits = sign | exponentBits | fractionBits
+        }
+
+        return Float(bitPattern: floatBits)
+    }
+
     /// Get embedding vector for a token ID.
     /// Returns float32 array of length hiddenSize.
     public func embedding(for tokenId: Int) -> [Float] {
@@ -283,12 +317,13 @@ public final class EmbeddingWeights: Sendable {
         let offset = 8 + tokenId * hiddenSize * 2  // header + token offset (float16)
         var result = [Float](repeating: 0, count: hiddenSize)
 
-        data.withUnsafeBytes { ptr in
-            let f16Ptr = ptr.baseAddress!.advanced(by: offset)
-                .assumingMemoryBound(to: Float16.self)
+        data.withUnsafeBytes { (rawBuffer: UnsafeRawBufferPointer) in
+            let u16Buf = rawBuffer.bindMemory(to: UInt16.self)
+            let elementOffset = offset / MemoryLayout<UInt16>.stride
+            guard let base = u16Buf.baseAddress?.advanced(by: elementOffset) else { return }
 
             for i in 0..<hiddenSize {
-                result[i] = Float(f16Ptr[i])
+                result[i] = float16BitsToFloat(base[i])
             }
         }
 
@@ -326,3 +361,4 @@ public enum Qwen3AsrError: Error, LocalizedError {
         }
     }
 }
+
