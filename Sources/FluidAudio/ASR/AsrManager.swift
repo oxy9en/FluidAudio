@@ -100,7 +100,7 @@ public final class AsrManager {
 
     /// Initialize ASR Manager with pre-loaded models
     /// - Parameter models: Pre-loaded ASR models
-    public func initialize(models: AsrModels) async throws {
+    public nonisolated(nonsending) func initialize(models: AsrModels) async throws {
         logger.info("Initializing AsrManager with provided models")
 
         self.asrModels = models
@@ -184,7 +184,7 @@ public final class AsrManager {
         return array
     }
 
-    func preparePreprocessorInput(
+    nonisolated(nonsending) func preparePreprocessorInput(
         _ audioSamples: [Float], actualLength: Int? = nil
     ) async throws
         -> MLFeatureProvider
@@ -228,7 +228,9 @@ public final class AsrManager {
         ])
     }
 
-    internal func initializeDecoderState(decoderState: inout TdtDecoderState) async throws {
+    internal nonisolated(nonsending) func initializeDecoderState(decoderState: inout TdtDecoderState)
+        async throws
+    {
         guard let decoderModel = decoderModel else {
             throw ASRError.notInitialized
         }
@@ -294,7 +296,7 @@ public final class AsrManager {
         logger.info("AsrManager resources cleaned up")
     }
 
-    internal func tdtDecodeWithTimings(
+    internal nonisolated(nonsending) func tdtDecodeWithTimings(
         encoderOutput: MLMultiArray,
         encoderSequenceLength: Int,
         actualAudioFrames: Int,
@@ -496,14 +498,14 @@ public final class AsrManager {
     }
 
     // Reset both decoder states
-    public func resetDecoderState() async throws {
+    public nonisolated(nonsending) func resetDecoderState() async throws {
         try await resetDecoderState(for: .microphone)
         try await resetDecoderState(for: .system)
     }
 
     /// Reset the decoder state for a specific audio source
     /// This should be called when starting a new transcription session or switching between different audio files
-    public func resetDecoderState(for source: AudioSource) async throws {
+    public nonisolated(nonsending) func resetDecoderState(for source: AudioSource) async throws {
         switch source {
         case .microphone:
             try await initializeDecoderState(decoderState: &microphoneDecoderState)

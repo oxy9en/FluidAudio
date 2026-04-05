@@ -16,10 +16,9 @@ public actor StreamingAsrManager {
     // Transcription output stream
     private var updateContinuation: AsyncStream<StreamingTranscriptionUpdate>.Continuation?
 
-    // ASR components
-    // AsrManager contains CoreML models which are not Sendable.
-    // We manage the safety ourselves by only accessing it from within the actor.
-    nonisolated(unsafe) private var asrManager: AsrManager?
+    // ASR components (Core ML); accessed only on this actor. Async entry points use
+    // nonisolated(nonsending) on AsrManager so await does not cross Sendable boundaries.
+    private var asrManager: AsrManager?
     private var recognizerTask: Task<Void, Error>?
     private var audioSource: AudioSource = .microphone
 

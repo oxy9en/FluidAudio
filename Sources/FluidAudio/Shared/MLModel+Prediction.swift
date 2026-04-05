@@ -3,7 +3,7 @@ import Foundation
 
 extension MLModel {
     /// Compatibly call Core ML prediction using async API.
-    public func compatPrediction(
+    public nonisolated(nonsending) func compatPrediction(
         from input: MLFeatureProvider,
         options: MLPredictionOptions
     ) async throws -> MLFeatureProvider {
